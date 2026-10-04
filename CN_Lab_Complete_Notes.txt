@@ -1,0 +1,1062 @@
+==============================================================================
+COMPUTER NETWORKS (CL3001) - COMPLETE LAB GUIDE (LABS 1 TO 6)
+==============================================================================
+
+CONTENTS
+  PART A  - Quick reference: ports, cables, IP classes, modes
+  PART B  - Lab 1: Fundamentals (theory)
+  PART C  - Lab 2: Packet Tracer, hub/switch, static IPs, DHCP, topologies
+  PART D  - Lab 3: Python socket programming
+  PART E  - Lab 4: Routers, HTTP/HTTPS, status codes, DNS
+  PART F  - Lab 5: Email (SMTP/POP3), FTP, Wireshark
+  PART G  - Lab 6: Telnet and SSH
+  PART H  - COMMAND REFERENCE (all commands and how to use them)
+  PART I  - Troubleshooting checklist
+  PART J  - Exam-day checklist
+
+Note: Some lab PDFs have small typos or missing details (IPs, gateways).
+Those are marked "NOTE" with the fix.
+
+
+==============================================================================
+PART A - QUICK REFERENCE
+==============================================================================
+
+A1. PORT NUMBERS
+------------------------------------------------------------------------------
+Protocol     Port        Transport   Purpose
+HTTP         80          TCP         Web, no encryption
+HTTPS        443         TCP         Web, encrypted (SSL/TLS)
+DNS          53          UDP         Name -> IP
+DHCP         67 / 68     UDP         67 = server, 68 = client
+SMTP         25          TCP         Sending mail (server to server)
+SMTP submit  587         TCP         Clients submitting mail
+POP3         110         TCP         Retrieving mail
+IMAP         143         TCP         Retrieving mail (alternative)
+FTP control  21          TCP         Login and commands
+FTP data     20          TCP         File data (active mode)
+SSH          22          TCP         Secure remote login
+Telnet       23          TCP         Insecure remote login
+
+In any packet: the CLIENT uses a random source port (e.g. 1039),
+the SERVER uses the well-known port above.
+
+A2. CABLES
+------------------------------------------------------------------------------
+Rule: DIFFERENT devices = Straight-through. SAME devices = Crossover.
+
+Connection                         Cable
+PC <-> Switch / Hub                Straight-through
+Router <-> Switch                  Straight-through (in Packet Tracer)
+Router <-> PC / Server (direct)    Crossover
+PC <-> PC                          Crossover
+Switch <-> Switch                  Crossover
+Hub <-> Switch                     Crossover
+
+Packet Tracer: Connections (lightning bolt)
+  Black solid line  = Copper Straight-through
+  Black dotted line = Copper Cross-Over
+
+Wiring: Straight = 568A-568A or 568B-568B. Crossover = 568A on one end,
+568B on the other. Pins 1,2 = TX; pins 3,6 = RX. Crossover swaps 1<->3, 2<->6.
+Auto MDI/MDI-X on modern devices makes cable type irrelevant.
+
+A3. IP CLASSES
+------------------------------------------------------------------------------
+Class  First octet   Default mask     Private range
+A      0-127         255.0.0.0        10.0.0.0 - 10.255.255.255
+B      128-191       255.255.0.0      172.16.0.0 - 172.31.255.255
+C      192-223       255.255.255.0    192.168.0.0 - 192.168.255.255
+D      224-239       (multicast)
+E      240-255       (experimental)
+127.x.x.x = loopback (testing your own machine).
+Leading bits: A=0, B=10, C=110.
+
+A4. CISCO CLI PROMPTS (which mode am I in?)
+------------------------------------------------------------------------------
+Router>              User mode
+Router#              Privileged mode (type: en)
+Router(config)#      Global configuration (type: config t)
+Router(config-if)#   Interface configuration
+Router(config-line)# Line configuration (vty)
+
+A5. PACKET TRACER MODES
+------------------------------------------------------------------------------
+Realtime   : shows only the result (Successful / Failed).
+Simulation : shows every packet hop by hop; used to read ports and headers.
+Link lights: green = up, amber on a switch port = STP still working
+             (wait ~30 seconds for green), red = down.
+
+
+==============================================================================
+PART B - LAB 1: FUNDAMENTALS
+==============================================================================
+
+B1. NETWORK BASICS
+------------------------------------------------------------------------------
+Network       : group of interconnected things.
+Computer net. : nodes sharing resources over cable or wireless links.
+Host          : any device (PC, server) connected to a network; has a unique
+                identifier such as an IP address.
+
+Types by size:
+  LAN : local area (a lab, a building)
+  MAN : metropolitan area (a city, ISP-level)
+  WAN : wide area (countries, continents; the Internet)
+
+B2. TOPOLOGIES
+------------------------------------------------------------------------------
+Topology = arrangement of links and nodes (physical or logical).
+  Bus   : all devices on one shared line. One break affects everyone.
+  Ring  : devices form a loop.
+  Star  : all devices connect to one central switch/hub. Central device is a
+          single point of failure.
+  Tree  : hierarchy of stars.
+  Mesh  : nodes connected to many others. Full mesh = every node to every
+          other. Links needed = n(n-1)/2. Reliable but expensive.
+
+B3. NETWORK TERMINOLOGY
+------------------------------------------------------------------------------
+NIC          : Network Interface Card, host's hardware interface.
+MAC address  : Medium Access Control, physical address on the NIC
+               (e.g. 00:C0:9F:9B:D5:46).
+Hub          : basic device, no intelligence, sends data to ALL ports.
+               Half duplex. Layer 1.
+Switch       : learns MAC addresses, forwards only to the destination port.
+               Full duplex. Layer 2.
+Router       : connects different networks, decides the path using IP
+               addresses. Layer 3.
+IP address   : logical address (192.168.0.1).
+Port address : identifies an application on a host (65,535 ports per host).
+Gateway      : the router address a host uses to reach other networks.
+Domain name  : name mapped to an IP (www.google.com).
+DNS server   : converts domain name <-> IP.
+DHCP         : gives hosts IPs automatically (also DNS info).
+
+B4. OSI MODEL (7 layers, top to bottom)
+------------------------------------------------------------------------------
+7 Application   (HTTP, FTP, SMTP, DNS, SSH, Telnet)
+6 Presentation
+5 Session
+4 Transport     (TCP, UDP)
+3 Network       (IP, router)
+2 Data Link     (Ethernet, MAC, switch)
+1 Physical      (cables, hub)
+Memory trick: "All People Seem To Need Data Processing".
+Goal of OSI: interoperability through standards.
+
+B5. WINDOWS / LINUX COMMANDS
+------------------------------------------------------------------------------
+Linux        Windows     Use
+ifconfig     ipconfig    Show IP, mask, gateway
+hostname     hostname    Show computer name
+nslookup     nslookup    DNS lookup
+ping         ping        Check if a host is reachable
+traceroute   tracert     Show each router hop to a destination
+netstat      netstat     Active connections, ports, routing table
+(Full usage in Part H.)
+
+
+==============================================================================
+PART C - LAB 2: PACKET TRACER, HUB/SWITCH, STATIC IP, DHCP, TOPOLOGIES
+==============================================================================
+
+C1. PACKET TRACER INTRO
+------------------------------------------------------------------------------
+Packet Tracer (PT) is a Cisco protocol simulator. It shows layer 2 (Ethernet,
+PPP), layer 3 (IP, ICMP, ARP) and layer 4 (TCP, UDP) protocols, and routing
+protocols, in Realtime or Simulation mode.
+
+Device panel (bottom-left): Routers, Switches, Hubs, Wireless, Connections,
+End Devices, WAN Emulation, Custom Made, Multiuser.
+
+C2. BUILD THE TOPOLOGY (2 PCs on hub, 2 PCs on switch, hub-switch joined)
+------------------------------------------------------------------------------
+1. End Devices -> Generic PC; click in the workspace 4 times (PC0 to PC3).
+2. Hubs -> Generic hub; click once below PC0/PC1.
+3. Switches -> 2950-24 (or 2960); click once below PC2/PC3.
+4. Connections -> choose cable:
+     PC0 -> Hub0     Copper Straight-through. Click PC0, choose FastEthernet,
+                     click Hub0, choose Port 0.
+     PC1 -> Hub0     Straight-through, Hub Port 1.
+     PC2 -> Switch0  Straight-through, FastEthernet0/1.
+     PC3 -> Switch0  Straight-through, FastEthernet0/2.
+     Hub0 -> Switch0 Copper Cross-Over, Hub Port 5, Switch Fa0/4.
+5. Wait until all switch lights turn green (STP, ~30 seconds).
+Hover over a link light to see the port name. Fa = FastEthernet = 100 Mbps.
+
+C3. STATIC IP ADDRESSES
+------------------------------------------------------------------------------
+Click PC -> Config tab -> FastEthernet0 -> Static -> IP + Subnet Mask.
+Gateway and DNS are under Config -> Settings (not needed without a router).
+
+Host  IP Address     Subnet Mask
+PC0   172.16.1.10    255.255.0.0
+PC1   172.16.1.11    255.255.0.0
+PC2   172.16.1.12    255.255.0.0
+PC3   172.16.1.13    255.255.0.0
+
+Verify: hover the mouse over each host.
+Bandwidth and Duplex default to Auto (auto-negotiation):
+  Hub    -> host chooses half duplex.
+  Switch -> host chooses full duplex (more efficient).
+  100 Mbps if port supports it, otherwise 10 Mbps.
+
+C4. PING TEST (Realtime)
+------------------------------------------------------------------------------
+1. Make sure mode = Realtime.
+2. Click Add Simple PDU (closed envelope).
+3. Click PC0, then PC3.
+4. Last Status = Successful, Type = ICMP.
+Alternative: PC0 -> Desktop -> Command Prompt -> ping 172.16.1.13
+
+C5. RESET THE NETWORK
+------------------------------------------------------------------------------
+1. Click Delete in the PDU panel.
+2. Click Power Cycle Devices -> Yes.
+3. Wait for switch lights to go green.
+Delete a device/link: Delete tool (X icon) then click the item.
+Save: File -> Save As -> .pkt file.
+
+C6. SIMULATION MODE (ICMP)
+------------------------------------------------------------------------------
+1. Click Simulation (bottom right).
+2. Edit Filters -> Show All/None (clear) -> tick only ICMP.
+3. Add Simple PDU: click PC0, then PC3.
+4. Click Capture/Forward repeatedly (or Auto Capture/Play).
+5. Watch PC0 -> Hub -> Switch -> PC3 and back.
+6. If "Buffer Full" appears: Clear Event List and continue.
+Click an event/envelope -> PDU details:
+  OSI Model tab           layers at that device
+  Inbound/Outbound PDU    header fields (IPs, ports, flags)
+Hub copies to all ports; switch forwards only toward the destination.
+
+C7. DHCP
+------------------------------------------------------------------------------
+DHCP = Dynamic Host Configuration Protocol. (PDF says "Control" once; typo.)
+Gives IPs automatically from a pool.
+
+DORA process:
+  D  DISCOVER  client broadcasts "any DHCP server?"
+  O  OFFER     server offers an IP from its pool
+  R  REQUEST   client accepts the offer
+  A  ACK       server confirms the lease
+
+Setup:
+1. Topology: 1 Server, 3 PCs, 1 switch (2960). All Copper Straight-through.
+   Server Fa0/1, PCs Fa0/2, Fa0/3, Fa0/4. Wait for green.
+2. Server static IP: Server -> Config -> FastEthernet0
+     IP 192.168.1.1, Mask 255.255.255.0
+3. Server -> Services -> DHCP:
+     Service: On
+     Pool Name: MyPool
+     Default Gateway: 0.0.0.0     DNS Server: 0.0.0.0
+     Start IP Address: 192.168.1.2
+     Subnet Mask: 255.255.255.0
+     Maximum Number of Users: 254
+     Click ADD (pool must appear in the table below).
+4. Each PC -> Desktop -> IP Configuration -> select DHCP.
+   Leases: 192.168.1.2, .3, .4 (in order of request), mask 255.255.255.0.
+5. Verify: ipconfig on a PC; ping between PCs.
+Simulation: filter DHCP only, switch a PC to Static then back to DHCP.
+Server needs a static IP; clients use DHCP.
+
+C8. TOPOLOGY SIMULATIONS
+------------------------------------------------------------------------------
+BUS : 3 switches in a line, one PC each. Switch-to-switch = Crossover,
+      PC-to-switch = Straight. Test PC0->PC1, PC1->PC2, PC0->PC2.
+STAR: 1 central switch, 4-5 PCs, all Straight-through. Test PDUs between
+      pairs.
+MESH: routers each linked to every other. 5 routers need 10 links; each needs
+      4 interfaces (power off, add interface modules, power on). Easier:
+      4 routers = 6 links. Screenshot shows CDP traffic; PDUs are ICMP.
+
+Comparison:
+  Bus  : single shared line; one break affects all.
+  Star : central switch is single point of failure.
+  Mesh : many cables/ports, expensive; redundant paths.
+
+
+==============================================================================
+PART D - LAB 3: PYTHON SOCKET PROGRAMMING
+==============================================================================
+Practice in an IDE or Jupyter (not Packet Tracer).
+
+D1. THEORY
+------------------------------------------------------------------------------
+Socket   : one endpoint of a two-way communication channel. Used for IPC
+           between processes on one machine or across the Internet.
+History  : ARPANET (1971); became an API in BSD Unix (1983), "Berkeley
+           sockets".
+TCP      : reliable, connection-oriented (SOCK_STREAM).
+UDP      : connectionless, no guarantee (SOCK_DGRAM).
+
+Create a socket:
+    s = socket.socket(socket_family, socket_type, protocol=0)
+  socket_family : AF_INET (IPv4) or AF_UNIX (same machine)
+  socket_type   : SOCK_STREAM (TCP) or SOCK_DGRAM (UDP)
+  protocol      : usually 0
+  socket.socket() with no arguments = IPv4 + TCP.
+
+TCP connection steps:
+  Server: socket -> bind -> listen -> accept (blocks) -> send/recv -> close
+  Client: socket -> connect -> send/recv -> close
+  accept() returns a NEW socket plus the client's address.
+
+Methods:
+  Server : bind(), listen(), accept()
+  Client : connect()
+  General: recv(), send() (TCP); recvfrom(), sendto() (UDP); close();
+           socket.gethostname()
+
+D2. INFO PROGRAMS
+------------------------------------------------------------------------------
+1) Own hostname and IP
+    import socket
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    print(f"Hostname: {hostname}")
+    print(f"IP_ADDRESS: {ip_address}")
+
+2) IP of any website (needs internet)
+    import socket
+    hostnames = ["www.google.com", "www.facebook.com"]
+    for i in hostnames:
+        ip_address = socket.gethostbyname(i)
+        print(f"Hostname: {i}")
+        print(f"IP_ADDRESS: {ip_address}\n")
+
+3) Hostname from IP (reverse lookup)
+    import socket
+    hname = socket.gethostbyaddr('8.8.8.8')
+    print(hname)          # ('dns.google', [], ['8.8.8.8'])
+    # hname[0] is just the name. Errors if there is no reverse record.
+
+4) Service name from port and protocol
+    import socket
+    def find_service_name():
+        protocol_name = 'tcp'
+        for port in [80, 25]:
+            print("Port %s => Service name: %s" %
+                  (port, socket.getservbyport(port, protocol_name)))
+        print("Port %s => Service name: %s" %
+              (53, socket.getservbyport(53, 'udp')))
+    if __name__ == '__main__':
+        find_service_name()
+   Output: 80 -> http, 25 -> smtp, 53 -> domain
+
+Function summary:
+  gethostname()               none          -> your computer's name
+  gethostbyname(name)         hostname      -> IP
+  gethostbyaddr(ip)           IP            -> (hostname, aliases, [ip])
+  getservbyport(port, proto)  port, proto   -> service name
+
+D3. PORT SCANNER
+------------------------------------------------------------------------------
+    from socket import *
+    import time
+    startTime = time.time()
+    if __name__ == '__main__':
+        target = input("Enter the hostname to be scanned: ")
+        target_ip = gethostbyname(target)
+        print("Starting scan on host: ", target_ip)
+        for i in range(50, 500):
+            s = socket(AF_INET, SOCK_STREAM)
+            conn = s.connect_ex((target_ip, i))
+            if conn == 0:
+                print("Port %d: OPEN" % (i,))
+            s.close()
+    print("Time Taken in Seconds: ", time.time() - startTime)
+    print("Time in Minutes: ", (time.time() - startTime) / 60)
+
+connect_ex() returns 0 on success (open), nonzero if closed/filtered.
+range(50, 500) scans ports 50 to 499. Enter "localhost" as the target.
+Lab output showed 135 and 445 open (Windows). It takes a few minutes.
+
+D4. TCP SERVER AND CLIENT
+------------------------------------------------------------------------------
+SERVER (run first, in terminal 1):
+    import socket
+    s = socket.socket()
+    print("Socket Created")
+    s.bind(('localhost', 9999))
+    s.listen(5)
+    print("Waiting for connection")
+    while True:
+        c, addr = s.accept()
+        print("Got connection from", addr)
+        c.send(bytes("Thankyou for connecting", 'utf-8'))
+        c.close()
+
+CLIENT (run second, in terminal 2):
+    import socket
+    s = socket.socket()
+    s.connect(('localhost', 9999))
+    print(s.recv(1024).decode())
+    s.close()
+
+Expected: server prints "Got connection from ('127.0.0.1', <port>)";
+client prints "Thankyou for connecting".
+NOTE: the PDF uses bytes("...") without an encoding, which fails in
+Python 3. Use bytes("...", 'utf-8') or "...".encode().
+send/close use c (client socket), not s (listening socket).
+Stop the server with Ctrl+C.
+"Connection refused" = server not running. "Address already in use" =
+old server still running; close it or change the port.
+
+
+==============================================================================
+PART E - LAB 4: ROUTERS, HTTP/HTTPS, STATUS CODES, DNS
+==============================================================================
+
+E1. ROUTER THEORY
+------------------------------------------------------------------------------
+A router connects different networks and forwards packets. Layer 3.
+How it works:
+  1. Packet arrives, router reads the destination IP.
+  2. Looks up the routing table for the best path.
+  3. Forwards to the next hop or the destination network.
+  4. Repeats until the packet arrives.
+A router has CPU, RAM, an OS (Cisco IOS) and interfaces.
+Functions: path determination (RIP, OSPF, EIGRP), packet forwarding,
+traffic filtering (ACL), network segmentation.
+Each router interface must be in a DIFFERENT network.
+Routing table: destination network, mask/prefix, outgoing interface or next
+hop, route code (C = directly connected), metric (dynamic routes).
+
+E2. ROUTER LAB (two networks)
+------------------------------------------------------------------------------
+Topology: Router (1841) Fa0/0 -> Switch0 (PC0, PC1); Fa0/1 -> Switch1
+(PC2, PC3). All Copper Straight-through.
+
+NOTE: the PDF shows 10.10.10.05 / 10.10.10.06; type 10.10.10.5 / .6.
+The PDF omits gateways, but they are needed for cross-network ping.
+
+Device  IP            Mask          Gateway
+PC0     10.10.10.5    255.0.0.0     10.10.10.1
+PC1     10.10.10.6    255.0.0.0     10.10.10.1
+PC2     172.16.10.20  255.255.0.0   172.16.10.1
+PC3     172.16.10.21  255.255.0.0   172.16.10.1
+
+Router CLI (click router -> CLI tab):
+    Router>en
+    Router#config t
+    Router(config)#interface FastEthernet0/0
+    Router(config-if)#ip address 10.10.10.1 255.0.0.0
+    Router(config-if)#no shut
+    Router(config-if)#exit
+    Router(config)#interface FastEthernet0/1
+    Router(config-if)#ip address 172.16.10.1 255.255.0.0
+    Router(config-if)#no shut
+    Router(config-if)#exit
+
+Router interfaces are shut down by default, so "no shut" is mandatory.
+Success messages: "LINK-5-CHANGED ... changed state to up" and
+"LINEPROTO-5-UPDOWN ... changed state to up".
+
+GUI alternative: Router -> Config -> FastEthernet0/0 -> enter IP and mask,
+tick Port Status On. Repeat for Fa0/1.
+
+Verify:
+  show ip route              C entries for 10.0.0.0/8 and 172.16.0.0/16
+  show ip interface brief    both interfaces up/up
+  PC0: ping 172.16.10.20     should reply (first ping may time out: ARP)
+
+E3. HTTP AND HTTPS THEORY
+------------------------------------------------------------------------------
+HTTP : browser (client) requests a page, server responds. Port 80.
+HTTPS: HTTP + SSL/TLS. Encrypted. Server needs a signed certificate (also
+       verifies the server's identity). Port 443. Used for banking, payment
+       gateways, email.
+
+                    HTTP            HTTPS
+URL begins          http://         https://
+Port                80              443
+Security            Unsecured       Secured
+Encryption          None            Present
+Certificate         Not required    Required
+Layer (per PDF)     Application     Transport
+(Technically HTTPS is still application layer over TLS; answer the PDF way
+in the lab exam.)
+
+E4. HTTP STATUS CODES
+------------------------------------------------------------------------------
+4xx = CLIENT errors:
+  400 Bad Request          malformed request, server cannot process
+  401 Unauthorized         authentication required and missing/failed
+  403 Forbidden            valid request, server refuses; logging in will
+                           not help
+  404 Not Found            resource does not exist
+  408 Request Timeout      server timed out waiting for the request
+5xx = SERVER errors:
+  500 Internal Server Error  generic unexpected error
+  501 Not Implemented        server lacks the method/feature
+  502 Bad Gateway            gateway/proxy got an invalid upstream response
+  503 Service Unavailable    overloaded or under maintenance (temporary)
+Remember: 401 = not logged in, 403 = not allowed, 404 = does not exist.
+
+E5. HTTP/HTTPS LAB
+------------------------------------------------------------------------------
+Topology: PC0, PC1 -> Switch (Fa0/1, Fa0/2); Switch Fa0/3 -> Router1 Fa0/0;
+Router1 Fa0/1 -> Server0. Switch/PC links Straight-through. Router -> Server
+is Copper Cross-Over (dashed line in the PDF).
+
+Device        IP            Mask           Gateway
+PC0           192.168.1.2   255.255.255.0  192.168.1.1
+PC1           192.168.1.3   255.255.255.0  192.168.1.1
+Server0       192.168.2.2   255.255.255.0  192.168.2.1
+Router Fa0/0  192.168.1.1   255.255.255.0
+Router Fa0/1  192.168.2.1   255.255.255.0
+
+Router CLI:
+    Router>en
+    Router#config t
+    Router(config)#interface FastEthernet0/0
+    Router(config-if)#ip address 192.168.1.1 255.255.255.0
+    Router(config-if)#no shut
+    Router(config-if)#exit
+    Router(config)#interface FastEthernet0/1
+    Router(config-if)#ip address 192.168.2.1 255.255.255.0
+    Router(config-if)#no shut
+    Router(config-if)#exit
+
+Test: PC0 -> Command Prompt -> ping 192.168.2.2 (must work first).
+Server0 -> Services -> HTTP: HTTP On, HTTPS On.
+
+Test HTTP: PC0 -> Desktop -> Web Browser -> http://192.168.2.2 -> Go.
+  Cisco Packet Tracer welcome page appears.
+HTTP packet: Simulation -> Edit Filters -> clear -> tick HTTP -> reload page
+  -> Capture/Forward -> click packet -> Outbound PDU Details -> TCP section:
+  Destination port = 80 (source port random, e.g. 1039).
+Test HTTPS: URL https://192.168.2.2 -> Go. Filter HTTPS -> Capture/Forward
+  -> click packet -> Outbound PDU Details: Destination port = 443.
+  (TTL 128, protocol 0x06 = TCP visible in IP section.)
+
+E6. DNS THEORY
+------------------------------------------------------------------------------
+DNS = hierarchical, distributed naming system that translates domain names
+to IP addresses.
+Hierarchy: Root (.) -> TLD (.com, .pk) -> authoritative server.
+Records:
+  A      maps a domain name (FQDN) to an IP (google.com -> 74.125.224.147)
+  CNAME  alias pointing to the canonical name
+  NS     identifies the authoritative DNS server for a zone
+  SOA    Start of Authority: info about the server that supplies the zone
+         data
+Only A and CNAME are configured in the lab; NS and SOA are theory.
+
+E7. DNS LAB
+------------------------------------------------------------------------------
+Topology: 1 Server, 1 switch (2960), 3 PCs, all Straight-through. No router.
+Server Fa0/4, PC0 Fa0/1, PC2 Fa0/2, PC1 Fa0/3.
+
+Device   IP         Mask       DNS Server
+Server0  35.0.0.1   255.0.0.0  35.0.0.1
+PC0      35.0.0.2   255.0.0.0  35.0.0.1
+PC1      35.0.0.3   255.0.0.0  35.0.0.1
+PC2      35.0.0.4   255.0.0.0  35.0.0.1
+Gateway left empty. The DNS Server field on every PC is the key step.
+NOTE: the PDF screenshots show other IPs (192.168.10.x, "PC4"); follow this
+table, the concept is identical.
+
+Server0 -> Services -> DNS:
+  1. DNS Service: On
+  2. A record:     Name fast-ai, Type A Record, Address 35.0.0.1 -> Add
+  3. CNAME record: Name fast, Type CNAME, Host Name fast-ai -> Add
+  (Add the A record first; the CNAME points to it.)
+Also confirm Services -> HTTP is On.
+
+Test: any PC -> Desktop -> Web Browser -> http://fast-ai (page loads), then
+http://fast (works via alias). CLI: nslookup fast-ai / ping fast-ai.
+
+Simulation: filters DNS (and HTTP). Browse to http://fast-ai, then
+Capture/Forward. Event order:
+  1. PC -> Switch -> DNS Server (query)
+  2. DNS Server -> Switch -> PC (answer)
+  3. TCP setup between PC and web server
+  4. HTTP request and response
+DNS packet details: Query NAME=fast-ai, TYPE 1 (A), CLASS 1 (Internet).
+Answer: TTL 86400, IP 35.0.0.1.
+OSI tab at DNS server: Layer 7 DNS; Layer 4 UDP (port 53 on the server
+side, random port on the client side); Layer 3 IP; Layer 2 Ethernet II;
+Layer 1 FastEthernet. DNS resolution happens BEFORE the HTTP connection.
+
+
+==============================================================================
+PART F - LAB 5: EMAIL (SMTP/POP3), FTP, WIRESHARK
+==============================================================================
+
+F1. SMTP AND POP3 THEORY
+------------------------------------------------------------------------------
+SMTP (Simple Mail Transfer Protocol): Internet standard for sending email.
+  RFC 821 (1982), updated by RFC 5321 (2008, Extended SMTP). Runs over TCP.
+  Server-to-server port 25. Clients submit on 587. 465 is deprecated.
+POP3: used by clients to retrieve mail (port 110). IMAP is the alternative.
+Flow: BBA sends via SMTP to the mail server; the server stores it in CS's
+mailbox; CS later fetches it via POP3.
+
+F2. EMAIL LAB
+------------------------------------------------------------------------------
+Topology: Server (rename "Mail Server"), 1 switch (2960), 3 PCs (rename CS,
+EE, BBA). All Straight-through. The router in the PDF is not needed.
+
+Device       IP          Mask
+Mail Server  10.0.0.2    255.0.0.0
+CS           10.0.0.3    255.0.0.0
+EE           10.0.0.4    255.0.0.0
+BBA          10.0.0.5    255.0.0.0
+(PDF gives only the server IP; PC IPs are suggested.) ping 10.0.0.2 to test.
+
+Mail Server -> Services -> EMAIL:
+  1. SMTP Service ON
+  2. POP3 Service ON
+  3. Domain Name: fast.com -> click Set
+  4. Add users with +:   cs/123   ee/456   bba/789
+
+Each PC -> Desktop -> Email -> fill, then Save:
+  Field                  CS            EE            BBA
+  Your Name              cs            ee            bba
+  Email Address          cs@fast.com   ee@fast.com   bba@fast.com
+  Incoming Mail Server   10.0.0.2       (same)        (same)
+  Outgoing Mail Server   10.0.0.2       (same)        (same)
+  User Name              cs            ee            bba
+  Password               123           456           789
+Mail Browser buttons: Compose, Reply, Receive, Delete, Configure Mail.
+
+Send: BBA -> Compose -> To cs@fast.com, Subject "test mail", body
+  "hi from bba" -> Send -> "Send Success".
+Receive: CS -> Email -> Receive -> mail from bba@fast.com appears.
+
+Simulation: filters SMTP and POP3 (TCP also shows). Send mail, Capture/
+Forward. Send: TCP setup then SMTP BBA -> Switch -> Mail Server. Receive:
+TCP setup then POP3 between CS and the server.
+Click a packet -> OSI Model: Layer 7 SMTP; Layer 4 TCP (client's request has
+destination port 25; server replies have source port 25); Layer 3 IP;
+Layer 2 Ethernet II. Inbound PDU Details shows SRC/DEST PORT, sequence,
+ack, window and the SMTP data. POP3 packets use port 110.
+
+F3. FTP THEORY
+------------------------------------------------------------------------------
+FTP transfers files between client and server (client-server model).
+  Transport    : TCP
+  Control port : 21 (login and commands)
+  Data port    : 20 (file data, active mode)
+  Two separate connections: control and data.
+  Authentication: username/password in CLEAR TEXT; anonymous possible.
+  Secure variants: FTPS (FTP + SSL/TLS), SFTP (over SSH).
+Active mode : client sends PORT M (its listening port); server connects TO
+              the client from port 20.
+Passive mode: client sends PASV; server replies with IP and port; client
+              connects TO the server. Used when the client is behind a
+              firewall. PT shows "(passive mode On)".
+
+F4. FTP LAB
+------------------------------------------------------------------------------
+Use the same topology and IPs as the email lab (Server 10.0.0.2, CS .3,
+EE .4, BBA .5).
+
+Part i - Configure server: Server -> Services -> FTP (PDF says Config tab;
+in current PT it is Services).
+  Service: On
+  Add user: Username Fast, Password 1234, tick Write, Read, List only
+  (Delete and Rename unticked) -> Add.
+Users table: cisco / cisco / RWDNL (default), Fast / 1234 / RWL.
+Permission letters: R read, W write, D delete, N rename, L list.
+
+Connect: CS -> Desktop -> Command Prompt:
+    C:\>ftp 10.0.0.2
+    Username:Fast
+    Password:
+    ftp>
+Codes: 220 server ready; 331 username ok, need password; 230 logged in.
+
+Part ii - Upload: CS -> Desktop -> Text Editor -> New File -> type text ->
+save as test.bin. At the ftp> prompt:
+    ftp>put test.bin
+    [Transfer complete - 17 bytes]
+
+Part iii - View/download (PDF title repeats "Upload"; typo): on EE, connect
+as Fast, then:
+    ftp>dir          (test.bin is at the end of the list)
+    ftp>get test.bin (download)
+Permission test: as Fast, "delete test.bin" is refused; as cisco it works.
+
+Simulation: filter FTP. Run "ftp 10.0.0.2" and log in as cisco/cisco.
+Capture/Forward. Login exchange:
+  220 Welcome to PT Ftp server   (server greets)
+  USER cisco                     (client)
+  331 Username ok, need password (server)
+  PASS cisco                     (client; readable in clear text)
+  230 Logged in                  (server)
+OSI tab: Layer 7 FTP; Layer 4 TCP (server source port 21; client's
+destination port 21); Layer 3 IP; Layer 2 Ethernet II; Layer 1 FastEthernet.
+
+F5. WIRESHARK
+------------------------------------------------------------------------------
+Wireshark = free, open-source packet analyzer. Captures REAL packets on your
+network card (Packet Tracer simulation shows simulated ones). Uses:
+troubleshooting performance, tracing connections, inspecting suspicious
+transactions, finding traffic bursts, learning protocols.
+
+Start: open Wireshark -> pick the active interface (usually Wi-Fi, the one
+with a moving graph) -> double-click or click the blue shark-fin button.
+Stop: red square button. On Windows it needs Npcap (installed with it).
+
+Three panes:
+  Packet List     No., Time, Source, Destination, Protocol, Length, Info
+  Packet Details  layers: Frame, Ethernet II, IP, TCP, then application
+  Packet Bytes    raw hex and text
+Colors: green = TCP/HTTP, light blue = UDP, black/red = errors/resets.
+
+Display filters (type in the bar, press ENTER; green = valid, red = invalid):
+  tcp                       only TCP
+  udp                       only UDP
+  http                      only HTTP
+  dns                       only DNS
+  ip.addr == 192.168.1.5    to/from that IP
+  tcp.port == 80            TCP on port 80
+  http.request.method == "POST"   only POST requests
+Display filter hides captured packets; capture filter limits what is
+captured (set before starting).
+HTTPS shows as TCP port 443, protocol TLS, "Encrypted Application Data".
+
+HTTP packet analysis (clear text demo):
+  1. Start a capture.
+  2. Browse to http://testphp.vulnweb.com/login.php (type http:// so it is
+     not upgraded to HTTPS; a deliberate demo site).
+  3. Log in: Username test, Password test.
+  4. Stop the capture.
+  5. Filter: http
+  6. Find "POST /userinfo.php HTTP/1.1 (application/x-www-form-urlencoded)".
+  7. Click it; in Packet Details expand "HTML Form URL Encoded".
+  8. You see Form item "uname" = "test" and "pass" = "test".
+Credentials are readable, proving HTTP is insecure.
+Other items: GET /login.php, HTTP/1.1 200 OK, 302 Found, headers (Host,
+Referer, Accept-Language, User-Agent), Full request URI, Prev request in
+frame, Response in frame. Bonus: right-click -> Follow -> TCP Stream.
+
+
+==============================================================================
+PART G - LAB 6: TELNET AND SSH
+==============================================================================
+
+G1. TELNET THEORY
+------------------------------------------------------------------------------
+Telnet = terminal emulation program for TCP/IP networks. Lets you control a
+remote server/switch/router; commands run as if at its console.
+Port 23, TCP, login with password, CLEAR TEXT (insecure). Replaced by SSH.
+
+G2. TELNET LAB
+------------------------------------------------------------------------------
+Topology: Switch0 (2960) with PC0 (Fa0/1), PC1 (Fa0/2), PC2 (Fa0/3), all
+Straight-through. Wait for green.
+
+Device           IP           Mask
+PC0              192.168.1.2  255.255.255.0
+PC1              192.168.1.3  255.255.255.0
+PC2              192.168.1.4  255.255.255.0
+Switch (VLAN 1)  192.168.1.1  255.255.255.0
+
+Step 1 - Switch IP (a switch is Layer 2; remote management needs a virtual
+interface; all ports are in VLAN 1 by default):
+    Switch>en
+    Switch#config t
+    Switch(config)#interface vlan 1
+    Switch(config-if)#ip address 192.168.1.1 255.255.255.0
+    Switch(config-if)#no shutdown
+  Expect "Interface Vlan1, changed state to up". Test: ping 192.168.1.1.
+
+Step 2 - Telnet before any password (fails):
+    C:\>telnet 192.168.1.1
+    Trying 192.168.1.1 ...Open
+    [Connection to 192.168.1.1 closed by foreign host]
+
+Step 3 - VTY (remote login) password:
+    Switch(config-if)#exit
+    Switch(config)#line vty 0 15
+    Switch(config-line)#password cisco
+    Switch(config-line)#login
+    Switch(config-line)#end
+  vty 0 15 = 16 lines = 16 simultaneous sessions. "login" makes the switch
+  actually ask for the password.
+
+Step 4 - Telnet again (works, user mode only):
+    C:\>telnet 192.168.1.1
+    Password:        (cisco)
+    Switch>en
+    % No password set.
+    Switch>
+
+Step 5 - Enable password (on the switch's own CLI):
+    Switch#config t
+    Switch(config)#enable password cs
+    Switch(config)#exit
+
+Step 6 - Full remote access:
+    C:\>telnet 192.168.1.1
+    Password:        (cisco)
+    Switch>en
+    Password:        (cs)
+    Switch#config t
+    Switch(config)#
+  Type exit repeatedly to close.
+
+Two passwords:
+  VTY/line password : gets you IN remotely (cisco)
+  Enable password   : gets you to privileged mode (cs)
+Simulation: filter Telnet; destination port 23; data readable.
+
+G3. SSH THEORY
+------------------------------------------------------------------------------
+SSH (Secure Shell) = encrypted remote login. Application layer (Layer 7),
+port 22, TCP. Supports:
+  Password-based authentication: username + password
+  Key-based authentication: a key pair (two cryptographic keys)
+Encrypts all communication between the computers.
+
+G4. SSH LAB (same topology as Telnet)
+------------------------------------------------------------------------------
+Switch CLI:
+    Switch>en
+    Switch#config t
+    Switch(config)#hostname lab01
+    lab01(config)#ip domain name fast-cn
+    lab01(config)#crypto key generate rsa
+    How many bits in the modulus [512]: 1024
+    lab01(config)#ip ssh version 2
+    lab01(config)#line vty 0 15
+    lab01(config-line)#transport input ssh
+    lab01(config-line)#end
+Order matters: hostname -> domain name -> RSA keys. Hostname must not be the
+default "Switch". Use at least 768 bits (1024 used) for SSH v2. The key name
+is lab01.fast-cn. "Ambiguous command: ip s" in the PDF is just a typo; ignore.
+"transport input ssh" allows ONLY SSH (Telnet blocked).
+
+Connect from PC2:
+    C:\>ssh -l admin 192.168.1.1
+    Password:        (cisco = VTY password)
+    lab01>en
+    Password:        (cs)
+    lab01#config t
+    lab01(config)#interface FastEthernet0/4
+    lab01(config-if)#no shutdown
+-l (lowercase L) = login name. PT accepts any name here because only the
+line password is checked.
+
+Test Telnet is blocked: telnet 192.168.1.1 should now fail.
+
+Real username (replaces generic login):
+    lab01(config)#username CS-FAST secret abc
+    lab01(config)#line vty 0 15
+    lab01(config-line)#login local
+Connect:
+    C:\>ssh -l CS-FAST 192.168.1.1
+    Password:        (abc)
+    lab01>
+Username is case-sensitive; the old "cisco" password no longer works.
+
+Verify: show ip ssh, show ssh, show running-config.
+Simulation: filter SSH; destination port 22; data encrypted.
+
+Telnet vs SSH:
+  Step         Telnet                       SSH
+  Switch IP    interface vlan 1 + IP        same
+  Names        not needed                   hostname + ip domain name
+  Keys         not needed                   crypto key generate rsa
+  Line config  password + login             transport input ssh
+                                            (+ login local with username)
+  Connect      telnet 192.168.1.1           ssh -l username 192.168.1.1
+  Port         23                           22
+  Security     clear text                   encrypted
+
+
+==============================================================================
+PART H - COMMAND REFERENCE
+==============================================================================
+
+H1. WINDOWS / PACKET TRACER PC COMMAND PROMPT
+------------------------------------------------------------------------------
+(PC -> Desktop -> Command Prompt in Packet Tracer; same in Windows cmd.)
+
+ipconfig
+    Shows IP address, subnet mask, default gateway.
+    ipconfig /all  = also MAC address, DNS, DHCP details.
+    Use: check a DHCP lease or confirm a static IP.
+
+hostname
+    Prints the computer's name.
+
+ping <ip or name>
+    Tests reachability using ICMP echo.
+    Example: ping 192.168.1.3     ping fast-ai     ping 8.8.8.8
+    Output: Reply from ... (success) or Request timed out (failure).
+    First ping across a router may time out (ARP); repeat it.
+
+tracert <destination>
+    Shows each router hop on the path.   Example: tracert google.com
+    (Linux: traceroute)
+
+nslookup <name>
+    DNS lookup of a name.   Example: nslookup fast-ai
+
+netstat
+    Shows active connections and listening ports.
+
+telnet <ip>
+    Opens a Telnet session (port 23).   Example: telnet 192.168.1.1
+
+ssh -l <username> <ip>
+    Opens an SSH session (port 22).   Example: ssh -l CS-FAST 192.168.1.1
+
+ftp <ip>
+    Opens an FTP session to a server.   Example: ftp 10.0.0.2
+    Then enter username and password.
+
+H2. FTP COMMANDS (at the ftp> prompt)
+------------------------------------------------------------------------------
+dir               list files on the server              (needs L)
+put <file>        upload a file to the server           (needs W)
+get <file>        download a file from the server       (needs R)
+delete <file>     delete a file on the server           (needs D)
+rename <old> <new>  rename a file on the server         (needs N)
+quit              close the FTP session
+
+H3. CISCO IOS COMMANDS (router and switch CLI)
+------------------------------------------------------------------------------
+Mode navigation
+  enable (en)               user mode  -> privileged mode (> to #)
+  configure terminal (config t)   privileged -> global configuration
+  exit                      go back one level
+  end                       jump straight back to privileged mode
+  Ctrl+Z                    same as end
+
+Interface configuration
+  interface FastEthernet0/0       select interface (Fa0/0, Fa0/1, ...)
+  ip address <ip> <mask>          assign IP and mask
+                                  e.g. ip address 10.10.10.1 255.0.0.0
+  no shutdown (no shut)           turn the interface on
+                                  (router interfaces are off by default)
+  shutdown                        turn the interface off
+  interface vlan 1                switch virtual interface for management
+  (then ip address 192.168.1.1 255.255.255.0 and no shutdown)
+
+Remote access (Telnet)
+  line vty 0 15                   select the 16 remote-login lines
+  password <text>                 set the line password
+  login                           make the line ask for the password
+  enable password <text>          password for privileged mode
+  enable secret <text>            same, but stored encrypted (stronger)
+
+Remote access (SSH)
+  hostname <name>                 rename the device (needed for keys)
+  ip domain name <domain>         set the domain (needed for keys)
+  crypto key generate rsa         create RSA keys (enter 1024 when asked)
+  ip ssh version 2                use SSH version 2
+  transport input ssh             allow only SSH on the vty lines
+  username <name> secret <pass>   create a local user (encrypted password)
+  login local                     authenticate against local usernames
+
+Verification
+  show ip route                   routing table (C = connected)
+  show ip interface brief         interface status and IPs (want up/up)
+  show running-config             current configuration
+  show ip ssh                     SSH status and version
+  show ssh                        active SSH sessions
+  show interfaces                 detailed interface info
+
+H4. PYTHON SOCKET FUNCTIONS
+------------------------------------------------------------------------------
+socket.socket(family, type, proto)   create a socket (default IPv4 TCP)
+socket.gethostname()                 own computer name
+socket.gethostbyname(name)           name -> IP
+socket.gethostbyaddr(ip)             IP -> (hostname, aliases, [ip])
+socket.getservbyport(port, proto)    port -> service name
+s.bind((host, port))                 attach to address/port (server)
+s.listen(n)                          start listening, queue n clients
+c, addr = s.accept()                 wait for a client (blocks), returns
+                                     new socket + address
+s.connect((host, port))              connect to a server (client)
+s.connect_ex((host, port))           like connect, returns 0 on success
+s.send(bytes) / s.recv(n)            TCP send / receive
+s.sendto(...) / s.recvfrom(n)        UDP send / receive
+s.close()                            close the socket
+
+H5. WIRESHARK FILTERS
+------------------------------------------------------------------------------
+tcp | udp | http | dns
+ip.addr == <ip>
+tcp.port == <port>
+http.request.method == "POST"
+Right-click packet -> Follow -> TCP Stream
+
+H6. PACKET TRACER ACTIONS (quick)
+------------------------------------------------------------------------------
+Add device          pick category, pick model, click workspace
+Connect devices     Connections -> cable -> click device -> choose port ->
+                    click other device -> choose port
+Static IP (PC)      Config -> FastEthernet0 -> Static (or Desktop -> IP
+                    Configuration)
+Gateway / DNS       Config -> Settings (or Desktop -> IP Configuration)
+DHCP on a PC        Desktop -> IP Configuration -> DHCP
+Ping (GUI)          Add Simple PDU -> click source -> click destination
+Simulation filters  Simulation -> Edit Filters -> Show All/None -> tick the
+                    protocol -> Capture/Forward
+Read ports          click packet -> Inbound/Outbound PDU Details -> TCP/UDP
+Server services     Server -> Services -> HTTP / DHCP / DNS / EMAIL / FTP
+Email client        PC -> Desktop -> Email
+Web browser         PC -> Desktop -> Web Browser
+Reset               Delete PDU, then Power Cycle Devices
+Save                File -> Save As -> .pkt
+
+
+==============================================================================
+PART I - TROUBLESHOOTING CHECKLIST
+==============================================================================
+Ping fails / nothing works:
+  1. Are all link lights green? (amber switch ports: wait ~30 s)
+  2. Correct cable type? (same devices = crossover)
+  3. IP and mask correct? Same network for same-LAN hosts?
+  4. Across a router: default gateway set on every host? Router interfaces
+     configured and "no shut"?
+  5. Router interface has an IP in a different network from the other?
+  6. First ping across a router times out? Ping again (ARP).
+DHCP: pool added (clicked Add)? Service On? Server has static IP? PC set to
+  DHCP?
+DNS: service On? A record added first? DNS Server IP set on PCs?
+Email: SMTP and POP3 On? Domain set with Set? Users added? Client username,
+  password, server IPs, and @fast.com address correct?
+FTP: service On? User added? Username case-sensitive? Permission allows the
+  action?
+Telnet: switch has VLAN 1 IP? vty password AND "login" set? enable password
+  set for privileged mode?
+SSH: hostname changed from "Switch"? Domain name set? RSA keys generated
+  (before ip ssh version 2)? Key size >= 768?
+Python: server started before client? Port free? bytes() has encoding?
+
+
+==============================================================================
+PART J - EXAM-DAY CHECKLIST
+==============================================================================
+Memorize:
+  Ports: HTTP 80, HTTPS 443, DNS 53, SMTP 25, POP3 110, FTP 21/20,
+         SSH 22, Telnet 23, DHCP 67/68.
+  DORA: Discover, Offer, Request, Ack.
+  Cable rule: different = straight, same = crossover.
+  IP classes and default masks (A /8, B /16, C /24).
+  Status codes: 400, 401, 403, 404, 408 / 500, 501, 502, 503.
+  DNS records: A, CNAME, NS, SOA.
+Practice building from scratch (aim for speed):
+  1. Hub + switch topology with static IPs and ping.
+  2. DHCP server with 3 PCs.
+  3. Router with two networks and cross-network ping.
+  4. HTTP/HTTPS server and reading ports 80 and 443 in simulation.
+  5. DNS server with A and CNAME records, browse by name.
+  6. Mail server with 3 users, send and receive.
+  7. FTP server, put and get a file.
+  8. Telnet then SSH on a switch.
+Always: set IPs first, ping to verify, then configure the service, then test,
+then use Simulation with a protocol filter to show ports. Save the .pkt file.
+
+==============================================================================
+END OF NOTES
+==============================================================================

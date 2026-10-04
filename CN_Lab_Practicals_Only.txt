@@ -1,0 +1,522 @@
+==============================================================================
+COMPUTER NETWORKS LABS - PRACTICALS ONLY (steps, commands, code)
+==============================================================================
+Cable rule: different devices = Copper Straight-through, same devices =
+Copper Cross-Over. (Router -> PC/Server direct = Cross-Over.)
+After connecting, wait for all switch lights to turn green.
+Ports to find in Simulation: HTTP 80, HTTPS 443, DNS 53, SMTP 25, POP3 110,
+FTP 21, Telnet 23, SSH 22.
+
+
+==============================================================================
+LAB 2A - HUB + SWITCH TOPOLOGY, STATIC IP, PING
+==============================================================================
+Devices: 4 PCs, 1 Hub, 1 Switch (2950/2960)
+
+Cables:
+  PC0 -> Hub Port0        Straight-through
+  PC1 -> Hub Port1        Straight-through
+  PC2 -> Switch Fa0/1     Straight-through
+  PC3 -> Switch Fa0/2     Straight-through
+  Hub Port5 -> Switch Fa0/4   Cross-Over
+
+Static IPs (PC -> Config -> FastEthernet0 -> Static):
+  PC0 172.16.1.10   255.255.0.0
+  PC1 172.16.1.11   255.255.0.0
+  PC2 172.16.1.12   255.255.0.0
+  PC3 172.16.1.13   255.255.0.0
+
+Ping (Realtime): Add Simple PDU -> click PC0 -> click PC3 -> Successful.
+Or PC0 -> Desktop -> Command Prompt:
+    ping 172.16.1.13
+
+Simulation: Simulation -> Edit Filters -> Show All/None -> tick ICMP ->
+Add Simple PDU (PC0 -> PC3) -> Capture/Forward repeatedly.
+
+Reset: Delete (PDU panel) -> Power Cycle Devices -> Yes -> wait for green.
+Save: File -> Save As -> .pkt
+
+
+==============================================================================
+LAB 2B - DHCP
+==============================================================================
+Devices: 1 Server, 3 PCs, 1 Switch. All Straight-through.
+  Server -> Fa0/1, PCs -> Fa0/2, Fa0/3, Fa0/4
+
+Server IP: Server -> Config -> FastEthernet0
+    IP 192.168.1.1    Mask 255.255.255.0
+
+DHCP service: Server -> Services -> DHCP
+    Service:                 On
+    Pool Name:               MyPool
+    Default Gateway:         0.0.0.0
+    DNS Server:              0.0.0.0
+    Start IP Address:        192.168.1.2
+    Subnet Mask:             255.255.255.0
+    Max Number of Users:     254
+    Click ADD
+
+Each PC: Desktop -> IP Configuration -> select DHCP
+Result: 192.168.1.2, .3, .4
+Verify (PC command prompt):
+    ipconfig
+    ping 192.168.1.3
+
+Simulation: filter DHCP only, set PC Static then DHCP again, Capture/Forward.
+
+
+==============================================================================
+LAB 2C - BUS / STAR / MESH
+==============================================================================
+Bus : 3 switches in a line, 1 PC per switch.
+      Switch-Switch = Cross-Over, PC-Switch = Straight.
+      Add Simple PDU: PC0->PC1, PC1->PC2, PC0->PC2.
+Star: 1 switch center, 4-5 PCs, all Straight-through. PDUs between PC pairs.
+Mesh: routers each linked to every other (5 routers = 10 links; each needs 4
+      interfaces: power off router, add module, power on). Cables between
+      routers: Cross-Over. PDUs between routers.
+View in Simulation mode (filter ICMP).
+
+
+==============================================================================
+LAB 3 - PYTHON SOCKET PROGRAMS
+==============================================================================
+
+--- 3.1 Own hostname and IP ---
+import socket
+hostname = socket.gethostname()
+ip_address = socket.gethostbyname(hostname)
+print(f"Hostname: {hostname}")
+print(f"IP_ADDRESS: {ip_address}")
+
+--- 3.2 IP of any host ---
+import socket
+hostnames = ["www.google.com", "www.facebook.com"]
+for i in hostnames:
+    ip_address = socket.gethostbyname(i)
+    print(f"Hostname: {i}")
+    print(f"IP_ADDRESS: {ip_address}\n")
+
+--- 3.3 Hostname from IP ---
+import socket
+hname = socket.gethostbyaddr('172.16.5.43')
+hname1 = socket.gethostbyaddr('8.8.8.8')
+print(f"IP_ADDRESS: {hname}")
+print(f"IP_ADDRESS: {hname1}")
+# gethostbyaddr returns (hostname, aliases, [ip]); hname1[0] = name only
+# 172.16.5.43 is a private lab IP; it errors if no reverse record exists.
+
+--- 3.4 Service name from port + protocol ---
+import socket
+def find_service_name():
+    protocol_name = 'tcp'
+    for port in [80, 25]:
+        print("Port %s => Service name: %s" % (port, socket.getservbyport(port, protocol_name)))
+    print("Port %s => Service name: %s" % (53, socket.getservbyport(53, 'udp')))
+
+if __name__ == '__main__':
+    find_service_name()
+# Output: 80 http, 25 smtp, 53 domain
+
+--- 3.5 Port scanner ---
+from socket import *
+import time
+
+startTime = time.time()
+
+if __name__ == '__main__':
+    target = input("Enter the hostname to be scanned: ")
+    target_ip = gethostbyname(target)
+    print("Starting scan on host: ", target_ip)
+
+    for i in range(50, 500):
+        s = socket(AF_INET, SOCK_STREAM)
+        conn = s.connect_ex((target_ip, i))
+        if conn == 0:
+            print("Port %d: OPEN" % (i,))
+        s.close()
+
+print("Time Taken in Seconds: ", time.time() - startTime)
+print("Time in Minutes: ", (time.time() - startTime) / 60)
+# Input: localhost. connect_ex returns 0 = open.
+
+--- 3.6 TCP SERVER (run first) ---
+import socket
+
+s = socket.socket()
+print("Socket Created")
+
+s.bind(('localhost', 9999))
+
+s.listen(5)
+print("Waiting for connection")
+
+while True:
+    c, addr = s.accept()
+    print("Got connection from", addr)
+    c.send(bytes("Thankyou for connecting", 'utf-8'))
+    c.close()
+
+--- 3.7 TCP CLIENT (run second, separate terminal) ---
+import socket
+
+s = socket.socket()
+s.connect(('localhost', 9999))
+print(s.recv(1024).decode())
+s.close()
+
+# Stop server: Ctrl+C. Client before server = "Connection refused".
+# bytes() needs the encoding in Python 3 ('utf-8').
+
+
+==============================================================================
+LAB 4A - ROUTER, TWO NETWORKS
+==============================================================================
+Devices: Router 1841, 2 Switches (2960), 4 PCs. All Straight-through.
+  Router Fa0/0 -> Switch0 (PC0, PC1)
+  Router Fa0/1 -> Switch1 (PC2, PC3)
+
+PC settings (Config -> FastEthernet0 for IP; Config -> Settings for gateway):
+  PC0  10.10.10.5     255.0.0.0     GW 10.10.10.1
+  PC1  10.10.10.6     255.0.0.0     GW 10.10.10.1
+  PC2  172.16.10.20   255.255.0.0   GW 172.16.10.1
+  PC3  172.16.10.21   255.255.0.0   GW 172.16.10.1
+
+Router CLI:
+Router>en
+Router#config t
+Router(config)#interface FastEthernet0/0
+Router(config-if)#ip address 10.10.10.1 255.0.0.0
+Router(config-if)#no shut
+Router(config-if)#exit
+Router(config)#interface FastEthernet0/1
+Router(config-if)#ip address 172.16.10.1 255.255.0.0
+Router(config-if)#no shut
+Router(config-if)#exit
+Router(config)#end
+
+Verify:
+Router#show ip route
+Router#show ip interface brief
+PC0 command prompt:
+    ping 172.16.10.20
+
+GUI option: Router -> Config -> FastEthernet0/0 -> IP + mask, Port Status On.
+
+
+==============================================================================
+LAB 4B - HTTP / HTTPS
+==============================================================================
+Devices: Router, Switch, PC0, PC1, Server0.
+  PC0 -> Switch Fa0/1        Straight
+  PC1 -> Switch Fa0/2        Straight
+  Switch Fa0/3 -> Router Fa0/0   Straight
+  Router Fa0/1 -> Server0 Fa0    Cross-Over
+
+IPs:
+  PC0     192.168.1.2   255.255.255.0   GW 192.168.1.1
+  PC1     192.168.1.3   255.255.255.0   GW 192.168.1.1
+  Server0 192.168.2.2   255.255.255.0   GW 192.168.2.1
+
+Router CLI:
+Router>en
+Router#config t
+Router(config)#interface FastEthernet0/0
+Router(config-if)#ip address 192.168.1.1 255.255.255.0
+Router(config-if)#no shut
+Router(config-if)#exit
+Router(config)#interface FastEthernet0/1
+Router(config-if)#ip address 192.168.2.1 255.255.255.0
+Router(config-if)#no shut
+Router(config-if)#exit
+Router(config)#end
+
+Test: PC0 command prompt:
+    ping 192.168.2.2
+Server0 -> Services -> HTTP: HTTP On, HTTPS On.
+
+HTTP:  PC0 -> Desktop -> Web Browser -> http://192.168.2.2 -> Go
+       Simulation -> Edit Filters -> Show All/None -> tick HTTP
+       Reload page -> Capture/Forward -> click packet ->
+       Outbound PDU Details -> TCP -> Destination Port 80
+HTTPS: Browser -> https://192.168.2.2 -> Go
+       Filters -> tick HTTPS only -> Capture/Forward -> click packet ->
+       Outbound PDU Details -> Destination Port 443
+
+
+==============================================================================
+LAB 4C - DNS
+==============================================================================
+Devices: Server0, Switch (2960), PC0, PC1, PC2. All Straight-through.
+  PC0 Fa0/1, PC2 Fa0/2, PC1 Fa0/3, Server Fa0/4
+
+IPs (all Static, gateway empty):
+  Server0 35.0.0.1  255.0.0.0   DNS 35.0.0.1
+  PC0     35.0.0.2  255.0.0.0   DNS 35.0.0.1
+  PC1     35.0.0.3  255.0.0.0   DNS 35.0.0.1
+  PC2     35.0.0.4  255.0.0.0   DNS 35.0.0.1
+
+Server0 -> Services -> DNS:
+  DNS Service: On
+  A record:     Name fast-ai   Type A Record   Address 35.0.0.1   -> Add
+  CNAME record: Name fast      Type CNAME      Host Name fast-ai  -> Add
+Check Services -> HTTP is On.
+
+Test: PC -> Desktop -> Web Browser:
+    http://fast-ai
+    http://fast
+PC command prompt:
+    nslookup fast-ai
+    ping fast-ai
+
+Simulation: filters DNS (+ HTTP) -> browse http://fast-ai -> Capture/Forward
+-> click DNS packet -> Inbound/Outbound PDU Details (query + answer) and
+OSI Model tab (UDP port 53).
+
+
+==============================================================================
+LAB 5A - EMAIL (SMTP / POP3)
+==============================================================================
+Devices: Server (rename Mail Server), Switch, 3 PCs (rename CS, EE, BBA).
+All Straight-through.
+
+IPs (Static):
+  Mail Server 10.0.0.2   255.0.0.0
+  CS          10.0.0.3   255.0.0.0
+  EE          10.0.0.4   255.0.0.0
+  BBA         10.0.0.5   255.0.0.0
+Check: ping 10.0.0.2
+
+Mail Server -> Services -> EMAIL:
+  SMTP Service ON, POP3 Service ON
+  Domain Name: fast.com -> Set
+  Add users (User / Password, click +):
+      cs  / 123
+      ee  / 456
+      bba / 789
+
+Each PC -> Desktop -> Email -> fill -> Save:
+  CS : Name cs   | Email cs@fast.com  | Incoming 10.0.0.2 | Outgoing 10.0.0.2 | User cs  | Pass 123
+  EE : Name ee   | Email ee@fast.com  | Incoming 10.0.0.2 | Outgoing 10.0.0.2 | User ee  | Pass 456
+  BBA: Name bba  | Email bba@fast.com | Incoming 10.0.0.2 | Outgoing 10.0.0.2 | User bba | Pass 789
+
+Send: BBA -> Email -> Compose -> To cs@fast.com, Subject test mail, Body
+      hi from bba -> Send
+Receive: CS -> Email -> Receive
+
+Simulation: filters SMTP + POP3 -> send/receive -> Capture/Forward ->
+click packet -> OSI Model / PDU Details (ports 25 and 110).
+
+
+==============================================================================
+LAB 5B - FTP
+==============================================================================
+Same topology and IPs as Lab 5A (Server 10.0.0.2).
+
+Server -> Services -> FTP:
+  Service: On
+  Username Fast, Password 1234, tick Write + Read + List only -> Add
+  (default user cisco / cisco has all permissions)
+
+Client CS -> Desktop -> Command Prompt:
+    ftp 10.0.0.2
+    Username:Fast
+    Password:1234
+
+Create file: CS -> Desktop -> Text Editor -> New File -> type text -> save
+as test.bin
+
+At the ftp> prompt:
+    put test.bin
+On EE: Desktop -> Command Prompt:
+    ftp 10.0.0.2
+    Username:Fast
+    Password:1234
+    dir
+    get test.bin
+Other:
+    delete test.bin       (refused for Fast, works for cisco)
+    quit
+
+Simulation: filter FTP -> run ftp 10.0.0.2 with cisco / cisco ->
+Capture/Forward -> see 220, USER, 331, PASS, 230 -> OSI Model: port 21.
+
+
+==============================================================================
+LAB 5C - WIRESHARK
+==============================================================================
+1. Open Wireshark -> double-click active interface (Wi-Fi) to start capture.
+2. Browser: http://testphp.vulnweb.com/login.php
+   Username: test   Password: test
+3. Stop capture (red square).
+4. Display filter bar, press Enter:
+    tcp
+    http
+5. Find: POST /userinfo.php HTTP/1.1 (application/x-www-form-urlencoded)
+6. Click it -> Packet Details -> expand "HTML Form URL Encoded":
+    Form item "uname" = "test"
+    Form item "pass"  = "test"
+Other filters:
+    udp
+    dns
+    ip.addr == 192.168.1.5
+    tcp.port == 80
+    http.request.method == "POST"
+Right-click packet -> Follow -> TCP Stream.
+
+
+==============================================================================
+LAB 6A - TELNET (switch remote access)
+==============================================================================
+Devices: Switch0 (2960), PC0 Fa0/1, PC1 Fa0/2, PC2 Fa0/3. Straight-through.
+
+PC IPs: PC0 192.168.1.2, PC1 192.168.1.3, PC2 192.168.1.4, all 255.255.255.0
+
+Switch CLI - management IP:
+Switch>en
+Switch#config t
+Switch(config)#interface vlan 1
+Switch(config-if)#ip address 192.168.1.1 255.255.255.0
+Switch(config-if)#no shutdown
+
+Test (fails, no password set):
+C:\>telnet 192.168.1.1
+
+Switch CLI - VTY password:
+Switch(config-if)#exit
+Switch(config)#line vty 0 15
+Switch(config-line)#password cisco
+Switch(config-line)#login
+Switch(config-line)#end
+
+Test (user mode only):
+C:\>telnet 192.168.1.1
+Password: cisco
+Switch>en
+% No password set.
+
+Switch CLI - enable password:
+Switch#config t
+Switch(config)#enable password cs
+Switch(config)#exit
+
+Test (full access):
+C:\>telnet 192.168.1.1
+Password: cisco
+Switch>en
+Password: cs
+Switch#config t
+Switch(config)#
+
+
+==============================================================================
+LAB 6B - SSH (same switch as 6A)
+==============================================================================
+Switch CLI:
+Switch>en
+Switch#config t
+Switch(config)#hostname lab01
+lab01(config)#ip domain name fast-cn
+lab01(config)#crypto key generate rsa
+How many bits in the modulus [512]: 1024
+lab01(config)#ip ssh version 2
+lab01(config)#line vty 0 15
+lab01(config-line)#transport input ssh
+lab01(config-line)#end
+
+Connect from PC2:
+C:\>ssh -l admin 192.168.1.1
+Password: cisco
+lab01>en
+Password: cs
+lab01#config t
+lab01(config)#interface FastEthernet0/4
+lab01(config-if)#no shutdown
+lab01(config-if)#exit
+lab01(config)#exit
+
+Telnet now blocked:
+C:\>telnet 192.168.1.1
+
+Change username (switch CLI):
+lab01(config)#username CS-FAST secret abc
+lab01(config)#line vty 0 15
+lab01(config-line)#login local
+lab01(config-line)#end
+
+Connect with new user:
+C:\>ssh -l CS-FAST 192.168.1.1
+Password: abc
+lab01>
+
+Verify:
+lab01#show ip ssh
+lab01#show ssh
+lab01#show running-config
+
+
+==============================================================================
+COMMAND LIST (ALL IN ONE PLACE)
+==============================================================================
+
+PC command prompt:
+  ipconfig                       show IP/mask/gateway
+  ipconfig /all                  full details
+  ping <ip|name>                 test reachability
+  tracert <dest>                 trace route
+  nslookup <name>                DNS lookup
+  telnet <ip>                    Telnet session
+  ssh -l <user> <ip>             SSH session
+  ftp <ip>                       FTP session
+
+FTP prompt:
+  dir | put <file> | get <file> | delete <file> | rename <old> <new> | quit
+
+Cisco mode keys:
+  enable (en)                    user -> privileged
+  configure terminal (config t)  privileged -> global config
+  exit                           back one level
+  end                            back to privileged
+
+Cisco interface:
+  interface FastEthernet0/0
+  ip address <ip> <mask>
+  no shutdown (no shut)
+  interface vlan 1
+
+Cisco remote access:
+  line vty 0 15
+  password <text>
+  login
+  login local
+  enable password <text>
+  hostname <name>
+  ip domain name <domain>
+  crypto key generate rsa
+  ip ssh version 2
+  transport input ssh
+  username <name> secret <pass>
+
+Cisco verify:
+  show ip route
+  show ip interface brief
+  show running-config
+  show ip ssh
+  show ssh
+
+Wireshark filters:
+  tcp | udp | http | dns | ip.addr == x | tcp.port == x |
+  http.request.method == "POST"
+
+Python socket calls:
+  socket.gethostname()
+  socket.gethostbyname(name)
+  socket.gethostbyaddr(ip)
+  socket.getservbyport(port, 'tcp'|'udp')
+  s.bind((host, port)) | s.listen(5) | c, addr = s.accept()
+  s.connect((host, port)) | s.connect_ex((host, port))
+  s.send(bytes) | s.recv(1024) | s.close()
+
+==============================================================================
+END
+==============================================================================
